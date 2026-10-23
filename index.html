@@ -172,7 +172,7 @@ function sell(){
   if(ids.length){
     h+='<div class="cart"><h2>Venta actual</h2>';
     ids.forEach(function(id){var p=find(id);
-      h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div><div class="meta">'+money(p.price*cart[id])+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
+      h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price*cart[id])+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
     h+='<div class="total"><span>Total</span><span>'+money(cartTotal())+'</span></div><div class="actions"><button class="btn primary" data-a="checkout" style="flex:1">Registrar venta</button><button class="btn" data-a="clear">Vaciar</button></div></div>';
   }
   return h;
@@ -183,7 +183,7 @@ function hist(){
   if(!S.sales.length)return h+'<div class="empty">Todavía no registraste ventas.</div>';
   S.sales.slice().reverse().forEach(function(s){
     var d=new Date(s.date).toLocaleString("es",{dateStyle:"medium",timeStyle:"short"});
-    h+='<div class="card sale"><div class="top"><span class="'+(s.void?"void":"")+'">'+money(s.total)+'</span><span class="meta">'+d+'</span></div><div class="meta '+(s.void?"void":"")+'">'+s.items.map(function(i){return i.qty+" × "+esc(i.name)}).join(", ")+'</div>'+
+    h+='<div class="card sale"><div class="top"><span class="'+(s.void?"void":"")+'">'+money(s.total)+'</span><span class="meta">'+d+'</span></div><div class="meta '+(s.void?"void":"")+'">'+s.items.map(function(i){return i.qty+" × "+esc(i.name)+(tags(i)?" ("+tags(i)+")":"")}).join("<br>")+'</div>'+
     (s.void?'<div class="meta">Anulada · el stock se devolvió</div>':'<div class="actions"><button class="btn sm danger" data-a="void" data-id="'+s.id+'">Anular y devolver stock</button></div>')+'</div>';
   });
   return h;
@@ -212,7 +212,7 @@ async function load(){
   r.forEach(ck);
   S.products=r[0].data.map(function(p){return {id:p.id,name:p.name,price:Number(p.price),stock:p.stock,min:p.min_stock,brand:p.brand||"",veh:p.vehicle||""}});
   var bl=document.querySelector("#brands");if(bl)bl.innerHTML=uniq(S.products.map(function(p){return p.brand})).map(function(b){return '<option value="'+esc(b)+'">'}).join("");
-  S.sales=r[1].data.map(function(x){return {id:x.id,date:x.created_at,total:Number(x.total),void:x.void,items:x.sale_items.map(function(i){return {id:i.product_id,name:i.name,qty:i.qty,price:Number(i.price)}})}}).reverse();
+  S.sales=r[1].data.map(function(x){return {id:x.id,date:x.created_at,total:Number(x.total),void:x.void,items:x.sale_items.map(function(i){return {id:i.product_id,name:i.name,qty:i.qty,price:Number(i.price),brand:i.brand||"",veh:i.vehicle||""}})}}).reverse();
   S.expenses=r[2].data.map(function(x){return {id:x.id,desc:x.description,cat:x.category,amount:Number(x.amount),date:x.date}});
   render();
 }
