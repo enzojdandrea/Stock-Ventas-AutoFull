@@ -138,15 +138,19 @@ function render(){
   if(tab==="inv")v.innerHTML=inv();else if(tab==="sell")v.innerHTML=sell();else if(tab==="exp")v.innerHTML=exp();else v.innerHTML=hist();
   var s=$("#search");if(s){s.value=q;s.oninput=function(){q=s.value;var pos=s.selectionStart;render();var n=$("#search");n.focus();n.setSelectionRange(pos,pos)}}
 }
+function fbar(list,low){
+  var lowN=S.products.filter(function(p){return p.stock<=p.min}).length;
+  var allV=[];S.products.forEach(function(p){allV=allV.concat(vehs(p))});
+  var h='<div class="row" style="flex-wrap:wrap"><select id="fbrand" aria-label="Filtrar por marca" style="flex:1;min-width:130px"><option value="">Todas las marcas</option>'+opts(uniq(S.products.map(function(p){return p.brand})),fBrand)+'</select><select id="fveh" aria-label="Filtrar por vehículo" style="flex:1;min-width:130px"><option value="">Todos los vehículos</option>'+opts(uniq(allV),fVeh)+'</select></div>';
+  h+='<div class="row" style="align-items:center">'+(low?'<button class="chip" data-a="low" aria-pressed="'+fLow+'">Stock bajo ('+lowN+')</button>':'')+((fBrand||fVeh||fLow||q)?'<button class="btn sm" data-a="reset">Limpiar filtros</button>':'')+'<span class="meta" style="margin-left:auto">'+list.length+' de '+S.products.length+'</span></div>';
+  return h;
+}
 function inv(){
   var units=0,val=0,low=0;S.products.forEach(function(p){units+=p.stock;val+=p.stock*p.price;if(p.stock<=p.min)low++});
   var list=filtered();
   var h='<div class="stats"><div class="stat"><b>'+S.products.length+'</b><span>Productos</span></div><div class="stat"><b>'+units+'</b><span>Unidades</span></div><div class="stat"><b>'+money(val)+'</b><span>Valor al precio de venta</span></div><div class="stat"><b>'+low+'</b><span>Con stock bajo</span></div></div>';
   h+='<div class="row"><input id="search" type="search" placeholder="Buscar por descripción, marca o vehículo" aria-label="Buscar producto"><button class="btn primary" data-a="new">Nuevo producto</button></div>';
-  var lowN=S.products.filter(function(p){return p.stock<=p.min}).length;
-  var allV=[];S.products.forEach(function(p){allV=allV.concat(vehs(p))});
-  h+='<div class="row" style="flex-wrap:wrap"><select id="fbrand" aria-label="Filtrar por marca" style="flex:1;min-width:130px"><option value="">Todas las marcas</option>'+opts(uniq(S.products.map(function(p){return p.brand})),fBrand)+'</select><select id="fveh" aria-label="Filtrar por vehículo" style="flex:1;min-width:130px"><option value="">Todos los vehículos</option>'+opts(uniq(allV),fVeh)+'</select></div>';
-  h+='<div class="row" style="align-items:center"><button class="chip" data-a="low" aria-pressed="'+fLow+'">Stock bajo ('+lowN+')</button>'+((fBrand||fVeh||fLow||q)?'<button class="btn sm" data-a="reset">Limpiar filtros</button>':'')+'<span class="meta" style="margin-left:auto">'+list.length+' de '+S.products.length+'</span></div>';
+  h+=fbar(list,true);
   if(!list.length)h+='<div class="empty">'+(S.products.length?"Ningún producto coincide con la búsqueda.":"Todavía no cargaste productos. Toca «Nuevo producto» para empezar.")+'</div>';
   list.forEach(function(p){
     h+='<div class="card"><div class="item"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price)+' c/u'+(p.stock<=p.min&&p.stock>0?" · stock bajo":"")+(p.stock<=0?" · agotado":"")+'</div></div><div class="qty '+qcls(p)+'">'+p.stock+'</div></div>'+
@@ -158,6 +162,7 @@ function cartTotal(){var t=0;Object.keys(cart).forEach(function(id){var p=find(i
 function sell(){
   var list=filtered();
   var h='<div class="row"><input id="search" type="search" placeholder="Buscar producto para vender" aria-label="Buscar producto"></div>';
+  h+=fbar(list,false);
   if(!list.length)h+='<div class="empty">'+(S.products.length?"Ningún producto coincide.":"Primero carga productos en Inventario.")+'</div>';
   list.forEach(function(p){
     var inCart=cart[p.id]||0;
