@@ -125,8 +125,10 @@ function vehs(p){return (p.veh||"").split(",").map(function(x){return x.trim()})
 function uniq(a){var m={};a.forEach(function(x){x=(x||"").trim();if(x&&!m[x.toLowerCase()])m[x.toLowerCase()]=x});return Object.keys(m).map(function(k){return m[k]}).sort(function(a,b){return a.localeCompare(b,"es")})}
 function opts(a,sel){return a.map(function(x){return '<option'+(x.toLowerCase()===(sel||"").toLowerCase()?' selected':'')+'>'+esc(x)+'</option>'}).join("")}
 function tags(p){return [p.brand,p.veh].filter(Boolean).map(esc).join(" · ")}
-function filtered(){var t=q.trim().toLowerCase();return S.products.filter(function(p){
-  if(t&&(p.name+" "+(p.brand||"")+" "+(p.veh||"")).toLowerCase().indexOf(t)<0)return false;
+function norm(x){return (x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")}
+function filtered(){var words=norm(q).split(/\s+/).filter(Boolean);return S.products.filter(function(p){
+  var hay=norm(p.name+" "+(p.brand||"")+" "+(p.veh||""));
+  if(!words.every(function(w){return hay.indexOf(w)>-1}))return false;
   if(fBrand&&(p.brand||"").toLowerCase()!==fBrand.toLowerCase())return false;
   if(fVeh&&vehs(p).map(function(x){return x.toLowerCase()}).indexOf(fVeh.toLowerCase())<0)return false;
   if(fLow&&p.stock>p.min)return false;
@@ -149,7 +151,7 @@ function inv(){
   var units=0,val=0,low=0;S.products.forEach(function(p){units+=p.stock;val+=p.stock*p.price;if(p.stock<=p.min)low++});
   var list=filtered();
   var h='<div class="stats"><div class="stat"><b>'+S.products.length+'</b><span>Productos</span></div><div class="stat"><b>'+units+'</b><span>Unidades</span></div><div class="stat"><b>'+money(val)+'</b><span>Valor al precio de venta</span></div><div class="stat"><b>'+low+'</b><span>Con stock bajo</span></div></div>';
-  h+='<div class="row"><input id="search" type="search" placeholder="Buscar por descripción, marca o vehículo" aria-label="Buscar producto"><button class="btn primary" data-a="new">Nuevo producto</button></div>';
+  h+='<div class="row"><input id="search" type="search" placeholder="Buscar por nombre, marca o vehículo" aria-label="Buscar producto"><button class="btn primary" data-a="new">Nuevo producto</button></div>';
   h+=fbar(list,true);
   if(!list.length)h+='<div class="empty">'+(S.products.length?"Ningún producto coincide con la búsqueda.":"Todavía no cargaste productos. Toca «Nuevo producto» para empezar.")+'</div>';
   list.forEach(function(p){
@@ -161,7 +163,7 @@ function inv(){
 function cartTotal(){var t=0;Object.keys(cart).forEach(function(id){var p=find(id);if(p)t+=p.price*cart[id]});return t}
 function sell(){
   var list=filtered();
-  var h='<div class="row"><input id="search" type="search" placeholder="Buscar producto para vender" aria-label="Buscar producto"></div>';
+  var h='<div class="row"><input id="search" type="search" placeholder="Buscar por nombre, marca o vehículo" aria-label="Buscar producto"></div>';
   h+=fbar(list,false);
   if(!list.length)h+='<div class="empty">'+(S.products.length?"Ningún producto coincide.":"Primero carga productos en Inventario.")+'</div>';
   list.forEach(function(p){
