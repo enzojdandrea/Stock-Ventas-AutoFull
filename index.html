@@ -91,6 +91,14 @@ nav button{flex:1 0 auto;padding:10px 12px;white-space:nowrap}
     <div class="actions" style="margin-top:16px"><button class="btn primary" value="ok">Guardar</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div>
   </form>
 </dialog>
+<dialog id="sdlg">
+  <form method="dialog" id="sform">
+    <h2>Editar precios de la venta</h2>
+    <div id="slist"></div>
+    <div style="margin-top:10px;color:var(--muted);font-size:14px">El total de la venta se recalcula solo. El stock no cambia.</div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" value="ok">Guardar</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div>
+  </form>
+</dialog>
 <dialog id="edlg">
   <form method="dialog" id="eform">
     <h2>Nuevo gasto</h2>
@@ -194,7 +202,7 @@ function hist(){
   S.sales.slice().reverse().forEach(function(s){
     var d=new Date(s.date).toLocaleString("es",{dateStyle:"medium",timeStyle:"short"});
     h+='<div class="card sale"><div class="top"><span class="'+(s.void?"void":"")+'">'+money(s.total)+'</span><span class="meta">'+d+'</span></div><div class="meta '+(s.void?"void":"")+'">'+s.items.map(function(i){return i.qty+" × "+esc(i.name)+(tags(i)?" ("+tags(i)+")":"")}).join("<br>")+'</div>'+
-    (s.void?'<div class="meta">Anulada · el stock se devolvió</div>':'<div class="actions"><button class="btn sm danger" data-a="void" data-id="'+s.id+'">Anular y devolver stock</button></div>')+'</div>';
+    (s.void?'<div class="meta">Anulada · el stock se devolvió</div>':'<div class="actions"><button class="btn sm" data-a="editprices" data-id="'+s.id+'">Editar precios</button><button class="btn sm danger" data-a="void" data-id="'+s.id+'">Anular y devolver stock</button></div>')+'</div>';
   });
   return h;
 }
@@ -222,7 +230,7 @@ async function load(){
   r.forEach(ck);
   S.products=r[0].data.map(function(p){return {id:p.id,name:p.name,price:Number(p.price),stock:p.stock,min:p.min_stock,brand:p.brand||"",veh:p.vehicle||"",kind:p.category||"equipamiento"}});
   var bl=document.querySelector("#brands");if(bl)bl.innerHTML=uniq(S.products.map(function(p){return p.brand})).map(function(b){return '<option value="'+esc(b)+'">'}).join("");
-  S.sales=r[1].data.map(function(x){return {id:x.id,date:x.created_at,total:Number(x.total),void:x.void,items:x.sale_items.map(function(i){return {id:i.product_id,name:i.name,qty:i.qty,price:Number(i.price),brand:i.brand||"",veh:i.vehicle||""}})}}).reverse();
+  S.sales=r[1].data.map(function(x){return {id:x.id,date:x.created_at,total:Number(x.total),void:x.void,items:x.sale_items.map(function(i){return {rid:i.id,id:i.product_id,name:i.name,qty:i.qty,price:Number(i.price),brand:i.brand||"",veh:i.vehicle||""}})}}).reverse();
   S.expenses=r[2].data.map(function(x){return {id:x.id,desc:x.description,cat:x.category,amount:Number(x.amount),date:x.date}});
   render();
 }
@@ -277,6 +285,12 @@ document.addEventListener("click",async function(e){
       ck(await sb.rpc("create_sale",{p_items:items}));
       cart={};await load();toast("Venta registrada: "+money(tot));
     }
+    else if(a==="editprices"){
+      var sl=S.sales.find(function(x){return x.id===id});
+      if(sl&&!sl.void){editSale=id;
+        $("#slist").innerHTML=sl.items.map(function(i){return '<label for="pr'+i.rid+'">'+i.qty+' × '+esc(i.name)+(tags(i)?' ('+tags(i)+')':'')+'</label><input id="pr'+i.rid+'" data-rid="'+i.rid+'" type="number" min="0" step="0.01" inputmode="decimal" value="'+i.price+'" required>'}).join("");
+        $("#sdlg").showModal()}
+    }
     else if(a==="void"){if(confirm("¿Anular esta venta y devolver las unidades al stock?")){ck(await sb.rpc("void_sale",{p_sale_id:id}));await load();toast("Venta anulada")}}
     else if(a==="newexp"){$("#eform").reset();$("#edate").value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);$("#edlg").showModal()}
     else if(a==="delexp"){if(confirm("¿Eliminar este gasto?")){ck(await sb.from("expenses").delete().eq("id",id));await load()}}
@@ -296,6 +310,13 @@ $("#rform").addEventListener("submit",async function(e){
   var n=parseInt($("#rqty").value,10);
   if(!(n>0))return;
   try{ck(await sb.rpc("add_stock",{p_id:restockId,p_qty:n}));await load();toast("+"+n+" unidades")}catch(err){toast(msg(err))}
+});
+var editSale=null;
+$("#sform").addEventListener("submit",async function(e){
+  if(e.submitter&&e.submitter.value!=="ok")return;
+  var prices=[].map.call(document.querySelectorAll("#slist input"),function(x){return {item_id:x.dataset.rid,price:parseFloat(x.value)}});
+  if(!prices.length||prices.some(function(x){return !(x.price>=0)}))return;
+  try{ck(await sb.rpc("update_sale_prices",{p_sale_id:editSale,p_prices:prices}));await load();toast("Precios actualizados")}catch(err){toast(msg(err))}
 });
 $("#eform").addEventListener("submit",async function(e){
   if(e.submitter&&e.submitter.value!=="ok")return;
