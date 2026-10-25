@@ -62,6 +62,10 @@ nav{overflow-x:auto}
 nav button{flex:1 0 auto;padding:10px 12px;white-space:nowrap}
 .chip.pay{padding:8px 6px;font-size:13px;line-height:1.2}
 .chip.pay[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cardchip{display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.cardchip button{background:none;border:0;color:inherit;font:inherit;padding:0;cursor:pointer}
+.cardchip input{width:3.6em;padding:3px 4px;text-align:center;border-radius:8px;background:transparent;color:inherit;font:inherit;border:1px solid currentColor}
+.chip.pay[data-on="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
@@ -127,7 +131,7 @@ var S={products:[],sales:[],expenses:[]};
 var role="viewer";
 var sb=supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY);
 var fBrand="",fVeh="",fLow=false,fKind="";
-var pmode="pct",pval="";
+var pmode="pct",pval="",cpct="20";
 var pay="efectivo",PAYS=[["efectivo","Efectivo"],["transferencia","Transferencia"],["tarjeta","Tarjeta de crédito"]],PL={};
 PAYS.forEach(function(m){PL[m[0]]=m[1]});
 var tab="inv",q="",cart={},editId=null,restockId=null;
@@ -214,23 +218,34 @@ function pvFill(){
     return '<div class="card item"><div><div class="name">'+esc(r.p.name)+'</div>'+(tags(r.p)?'<div class="meta">'+tags(r.p)+'</div>':'')+'<div class="meta">Stock: '+r.p.stock+'</div></div><div style="text-align:right;white-space:nowrap">'+(ch?'<span class="meta" style="text-decoration:line-through">'+money(r.p.price)+'</span><br><b>'+money(r.n)+'</b>':'<b>'+money(r.p.price)+'</b>')+'</div></div>';
   }).join("")+(rows.length>300?'<div class="meta" style="text-align:center">…y '+(rows.length-300)+' más. Usa los filtros para acotar la lista.</div>':'');
 }
+function pct(){var v=parseFloat(String(cpct).replace(",","."));return isNaN(v)||v<0?0:v}
+function card(x){return Math.round(x*(1+pct()/100)*100)/100}
+function cartCard(){var t=0;Object.keys(cart).forEach(function(id){var p=find(id);if(p)t+=card(p.price)*cart[id]});return t}
+function cardNote(x){return pay==="tarjeta"?' <b style="color:var(--accent)">→ '+money(card(x))+' con tarjeta</b>':''}
+function payBar(){
+  var on=pay==="tarjeta";
+  return '<div class="row" style="flex-wrap:wrap" role="group" aria-label="Forma de pago">'+
+    PAYS.filter(function(m){return m[0]!=="tarjeta"}).map(function(m){return '<button class="chip pay" style="flex:1 1 40%" data-a="pay" data-v="'+m[0]+'" aria-pressed="'+(pay===m[0])+'">'+m[1]+'</button>'}).join("")+
+    '<div class="chip pay cardchip" style="flex:1 1 100%" data-a="pay" data-v="tarjeta" data-on="'+on+'"><button type="button" aria-pressed="'+on+'">Tarjeta de crédito  +</button><input id="cpct" type="text" inputmode="decimal" value="'+esc(cpct)+'" aria-label="Porcentaje de recargo con tarjeta"'+(on?'':' readonly')+'><span>%</span></div></div>';
+}
 function cartTotal(){var t=0;Object.keys(cart).forEach(function(id){var p=find(id);if(p)t+=p.price*cart[id]});return t}
 function sell(){
   var list=filtered();
   var h='<div class="row"><input id="search" type="search" placeholder="Buscar por nombre, marca o vehículo" aria-label="Buscar producto"></div>';
+  h=payBar()+h;
   h+=fbar(list,false);
   if(!list.length)h+='<div class="empty">'+(S.products.length?"Ningún producto coincide.":"Primero carga productos en Equipamiento o Accesorios.")+'</div>';
   list.forEach(function(p){
     var inCart=cart[p.id]||0;
-    h+='<div class="card item"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price)+' · disponibles: '+(p.stock-inCart)+'</div></div><button class="btn sm primary" data-a="add" data-id="'+p.id+'"'+(p.stock-inCart<=0?" disabled":"")+'>Agregar</button></div>';
+    h+='<div class="card item"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price)+cardNote(p.price)+' · disponibles: '+(p.stock-inCart)+'</div></div><button class="btn sm primary" data-a="add" data-id="'+p.id+'"'+(p.stock-inCart<=0?" disabled":"")+'>Agregar</button></div>';
   });
   var ids=Object.keys(cart).filter(function(id){return find(id)});
   if(ids.length){
     h+='<div class="cart"><h2>Venta actual</h2>';
     ids.forEach(function(id){var p=find(id);
-      h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price*cart[id])+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
-    h+='<div class="row" style="margin:10px 0 0" role="group" aria-label="Forma de pago">'+PAYS.map(function(m){return '<button class="chip pay" style="flex:1" data-a="pay" data-v="'+m[0]+'" aria-pressed="'+(pay===m[0])+'">'+m[1]+'</button>'}).join("")+'</div>';
-    h+='<div class="total"><span>Total</span><span>'+money(cartTotal())+'</span></div><div class="actions"><button class="btn primary" data-a="checkout" style="flex:1">Registrar venta</button><button class="btn" data-a="clear">Vaciar</button></div></div>';
+      h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price*cart[id])+(pay==="tarjeta"?' <b style="color:var(--accent)">→ '+money(card(p.price)*cart[id])+'</b>':'')+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
+    h+='<div class="meta" style="margin-top:8px">Forma de pago: <b>'+PL[pay]+(pay==="tarjeta"?' (+'+pct()+'%)':'')+'</b></div>';
+    h+='<div class="total"><span>Total</span><span>'+money(cartTotal())+'</span></div>'+(pay==="tarjeta"?'<div class="total" style="margin:-4px 0 6px;font-size:17px;color:var(--accent)"><span>Total con tarjeta (+'+pct()+'%)</span><span>'+money(cartCard())+'</span></div><div class="meta" style="margin-bottom:8px">El recargo solo se muestra: la venta se registra al precio normal.</div>':'')+'<div class="actions"><button class="btn primary" data-a="checkout" style="flex:1">Registrar venta</button><button class="btn" data-a="clear">Vaciar</button></div></div>';
   }
   return h;
 }
@@ -299,6 +314,10 @@ $("#backup").onclick=function(){sb.auth.signOut()};
 
 document.addEventListener("input",function(e){
   if(e.target.id==="pval"){pval=e.target.value;pvFill()}
+  else if(e.target.id==="cpct"){
+    var pos=e.target.selectionStart;cpct=e.target.value.replace(/[^0-9.,]/g,"");render();
+    var n=$("#cpct");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}
+  }
 });
 document.addEventListener("change",function(e){
   if(e.target.id==="fbrand"){fBrand=e.target.value;render()}
@@ -306,6 +325,7 @@ document.addEventListener("change",function(e){
   else if(e.target.id==="fkind"){fKind=e.target.value;render()}
 });
 document.addEventListener("click",async function(e){
+  if(e.target.id==="cpct"&&pay==="tarjeta")return;
   var t=e.target.closest("[data-tab],[data-a]");if(!t)return;
   if(t.dataset.tab){tab=t.dataset.tab;q="";fBrand="";fVeh="";fLow=false;fKind="";pval="";render();return}
   var a=t.dataset.a,id=t.dataset.id,p=id&&find(id);
