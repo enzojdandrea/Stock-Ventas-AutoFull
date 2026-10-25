@@ -8,6 +8,7 @@ Sitio estático (sin build) con base de datos en la nube, login y dos roles:
 ```
 index.html        → estructura de la página (HTML)
 css/styles.css    → estilos
+assets/logo.png   → logo que aparece en la pestaña del navegador (reemplázalo por el tuyo)
 js/config.js      → URL y clave de Supabase (lo único que debes editar)
 js/app.js         → lógica de la aplicación
 sql/              → scripts de la base de datos (se ejecutan en Supabase)
@@ -37,6 +38,9 @@ Pega la URL y la clave anon en `js/config.js`.
 2. vercel.com → Add New → Project → importa el repositorio.
 3. Framework Preset: **Other**. Sin build command ni output directory. Deploy.
 4. (Opcional) Settings → Domains para usar tu dominio.
+
+## Logo
+Para cambiar el logo de la pestaña del navegador, reemplaza `assets/logo.png` por tu imagen conservando el mismo nombre (PNG cuadrado, de 512×512 px si es posible). Vuelve a desplegar y recarga la página con Ctrl+F5, porque el navegador guarda los íconos en caché.
 
 ## Notas
 - Los permisos los aplica la base de datos, no solo la pantalla.
