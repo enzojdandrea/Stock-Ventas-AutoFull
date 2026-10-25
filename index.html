@@ -195,26 +195,24 @@ function prices(){
   h+='<div class="card"><h2>Cambiar precios de los productos filtrados</h2><div class="row" role="group" aria-label="Tipo de cambio">'+
     [["pct","Subir %"],["add","Sumar monto"],["set","Fijar precio"]].map(function(m){return '<button class="chip pay" style="flex:1" data-a="pmode" data-v="'+m[0]+'" aria-pressed="'+(pmode===m[0])+'">'+m[1]+'</button>'}).join("")+'</div>';
   h+='<label for="pval">'+(pmode==="pct"?"Porcentaje (con número negativo baja el precio)":(pmode==="add"?"Monto a sumar a cada precio ($)":"Nuevo precio para todos ($)"))+'</label><input id="pval" type="number" step="0.01" inputmode="decimal" value="'+esc(pval)+'">';
-  h+='<div id="pvbox"></div></div>';
+  h+='<div id="pvbox"></div></div><div id="pvlist" style="margin-top:12px"></div>';
   return h;
 }
 function pvFill(){
-  var b=$("#pvbox");if(!b)return;
+  var b=$("#pvbox"),L=$("#pvlist");if(!b||!L)return;
   var list=filtered(),hasVal=!isNaN(parseFloat(pval));
   var rows=list.map(function(p){return {p:p,n:newPrice(p)}});
   var ok=rows.filter(function(r){return r.n!==null&&r.n!==r.p.price});
   var bad=hasVal?rows.filter(function(r){return r.n===null}).length:0;
-  var h='';
-  if(!list.length)h='<div class="empty">Ningún producto coincide con la búsqueda.</div>';
-  else if(!ok.length)h='<div class="meta" style="margin-top:10px;color:var(--muted)">'+(hasVal?"Con ese valor ningún precio cambia.":"Escribe un valor para ver cómo quedarían los precios de los "+list.length+" productos filtrados.")+'</div>';
-  else{
-    h='<div class="meta" style="margin:12px 0 6px;color:var(--muted)">'+ok.length+' productos cambian de precio:</div><div style="max-height:260px;overflow:auto">'+
-      ok.slice(0,200).map(function(r){return '<div class="line"><div><div class="name">'+esc(r.p.name)+'</div>'+(tags(r.p)?'<div class="meta">'+tags(r.p)+'</div>':'')+'</div><div style="text-align:right;white-space:nowrap"><span class="meta" style="text-decoration:line-through">'+money(r.p.price)+'</span><br><b>'+money(r.n)+'</b></div></div>'}).join("")+
-      (ok.length>200?'<div class="meta">…y '+(ok.length-200)+' más</div>':'')+'</div>'+
-      (bad?'<div class="meta" style="margin-top:8px;color:var(--bad)">'+bad+' productos quedarían con precio negativo y no se modifican.</div>':'')+
-      '<div class="actions" style="margin-top:12px"><button class="btn primary" data-a="applyprices" style="flex:1">Aplicar a '+ok.length+' productos</button></div>';
-  }
+  var h='<div class="meta" style="margin:12px 0 6px;color:var(--muted)">'+(hasVal?(ok.length?ok.length+" de "+list.length+" productos cambian de precio.":"Con ese valor ningún precio cambia."):"Escribe un valor para ver cómo quedarían los precios.")+'</div>';
+  if(bad)h+='<div class="meta" style="margin-bottom:6px;color:var(--bad)">'+bad+' productos quedarían con precio negativo y no se modifican.</div>';
+  if(ok.length)h+='<div class="actions"><button class="btn primary" data-a="applyprices" style="flex:1">Aplicar a '+ok.length+' productos</button></div>';
   b.innerHTML=h;
+  if(!list.length){L.innerHTML='<div class="empty">Ningún producto coincide con la búsqueda.</div>';return}
+  L.innerHTML='<h2>Productos filtrados ('+list.length+')</h2>'+rows.slice(0,300).map(function(r){
+    var ch=r.n!==null&&r.n!==r.p.price;
+    return '<div class="card item"><div><div class="name">'+esc(r.p.name)+'</div>'+(tags(r.p)?'<div class="meta">'+tags(r.p)+'</div>':'')+'<div class="meta">Stock: '+r.p.stock+'</div></div><div style="text-align:right;white-space:nowrap">'+(ch?'<span class="meta" style="text-decoration:line-through">'+money(r.p.price)+'</span><br><b>'+money(r.n)+'</b>':'<b>'+money(r.p.price)+'</b>')+'</div></div>';
+  }).join("")+(rows.length>300?'<div class="meta" style="text-align:center">…y '+(rows.length-300)+' más. Usa los filtros para acotar la lista.</div>':'');
 }
 function cartTotal(){var t=0;Object.keys(cart).forEach(function(id){var p=find(id);if(p)t+=p.price*cart[id]});return t}
 function sell(){
