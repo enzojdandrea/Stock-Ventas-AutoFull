@@ -60,6 +60,8 @@ dialog{max-height:90vh;overflow:auto}
 .chip[aria-pressed="true"]{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
 nav{overflow-x:auto}
 nav button{flex:1 0 auto;padding:10px 12px;white-space:nowrap}
+.chip.pay{padding:8px 6px;font-size:13px;line-height:1.2}
+.chip.pay[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
@@ -124,6 +126,8 @@ var S={products:[],sales:[],expenses:[]};
 var role="viewer";
 var sb=supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY);
 var fBrand="",fVeh="",fLow=false,fKind="";
+var pay="efectivo",PAYS=[["efectivo","Efectivo"],["transferencia","Transferencia"],["tarjeta","Tarjeta de crédito"]],PL={};
+PAYS.forEach(function(m){PL[m[0]]=m[1]});
 var tab="inv",q="",cart={},editId=null,restockId=null;
 var $=function(s){return document.querySelector(s)};
 var money=function(n){return "$"+Number(n).toLocaleString("es",{minimumFractionDigits:2,maximumFractionDigits:2})};
@@ -191,17 +195,19 @@ function sell(){
     h+='<div class="cart"><h2>Venta actual</h2>';
     ids.forEach(function(id){var p=find(id);
       h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price*cart[id])+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
+    h+='<div class="row" style="margin:10px 0 0" role="group" aria-label="Forma de pago">'+PAYS.map(function(m){return '<button class="chip pay" style="flex:1" data-a="pay" data-v="'+m[0]+'" aria-pressed="'+(pay===m[0])+'">'+m[1]+'</button>'}).join("")+'</div>';
     h+='<div class="total"><span>Total</span><span>'+money(cartTotal())+'</span></div><div class="actions"><button class="btn primary" data-a="checkout" style="flex:1">Registrar venta</button><button class="btn" data-a="clear">Vaciar</button></div></div>';
   }
   return h;
 }
 function hist(){
-  var tot=0,n=0;S.sales.forEach(function(s){if(!s.void){tot+=s.total;n++}});
+  var tot=0,n=0,by={};S.sales.forEach(function(s){if(!s.void){tot+=s.total;n++;by[s.pay]=(by[s.pay]||0)+s.total}});
   var h='<div class="stats"><div class="stat"><b>'+n+'</b><span>Ventas</span></div><div class="stat"><b>'+money(tot)+'</b><span>Total vendido</span></div></div>';
+  h+='<div class="stats" style="grid-template-columns:repeat(3,1fr)">'+PAYS.map(function(m){return '<div class="stat"><b style="font-size:16px">'+money(by[m[0]]||0)+'</b><span>'+m[1]+'</span></div>'}).join("")+'</div>';
   if(!S.sales.length)return h+'<div class="empty">Todavía no registraste ventas.</div>';
   S.sales.slice().reverse().forEach(function(s){
     var d=new Date(s.date).toLocaleString("es",{dateStyle:"medium",timeStyle:"short"});
-    h+='<div class="card sale"><div class="top"><span class="'+(s.void?"void":"")+'">'+money(s.total)+'</span><span class="meta">'+d+'</span></div><div class="meta '+(s.void?"void":"")+'">'+s.items.map(function(i){return i.qty+" × "+esc(i.name)+(tags(i)?" ("+tags(i)+")":"")}).join("<br>")+'</div>'+
+    h+='<div class="card sale"><div class="top"><span class="'+(s.void?"void":"")+'">'+money(s.total)+'</span><span class="meta">'+d+' · '+(PL[s.pay]||"")+'</span></div><div class="meta '+(s.void?"void":"")+'">'+s.items.map(function(i){return i.qty+" × "+esc(i.name)+(tags(i)?" ("+tags(i)+")":"")}).join("<br>")+'</div>'+
     (s.void?'<div class="meta">Anulada · el stock se devolvió</div>':'<div class="actions"><button class="btn sm" data-a="editprices" data-id="'+s.id+'">Editar precios</button><button class="btn sm danger" data-a="void" data-id="'+s.id+'">Anular y devolver stock</button></div>')+'</div>';
   });
   return h;
@@ -230,7 +236,7 @@ async function load(){
   r.forEach(ck);
   S.products=r[0].data.map(function(p){return {id:p.id,name:p.name,price:Number(p.price),stock:p.stock,min:p.min_stock,brand:p.brand||"",veh:p.vehicle||"",kind:p.category||"equipamiento"}});
   var bl=document.querySelector("#brands");if(bl)bl.innerHTML=uniq(S.products.map(function(p){return p.brand})).map(function(b){return '<option value="'+esc(b)+'">'}).join("");
-  S.sales=r[1].data.map(function(x){return {id:x.id,date:x.created_at,total:Number(x.total),void:x.void,items:x.sale_items.map(function(i){return {rid:i.id,id:i.product_id,name:i.name,qty:i.qty,price:Number(i.price),brand:i.brand||"",veh:i.vehicle||""}})}}).reverse();
+  S.sales=r[1].data.map(function(x){return {id:x.id,date:x.created_at,total:Number(x.total),void:x.void,pay:x.payment_method||"efectivo",items:x.sale_items.map(function(i){return {rid:i.id,id:i.product_id,name:i.name,qty:i.qty,price:Number(i.price),brand:i.brand||"",veh:i.vehicle||""}})}}).reverse();
   S.expenses=r[2].data.map(function(x){return {id:x.id,desc:x.description,cat:x.category,amount:Number(x.amount),date:x.date}});
   render();
 }
@@ -276,14 +282,15 @@ document.addEventListener("click",async function(e){
     else if(a==="dec"){cart[id]--;if(cart[id]<=0)delete cart[id];render()}
     else if(a==="clear"){cart={};render()}
     else if(a==="low"){fLow=!fLow;render()}
+    else if(a==="pay"){pay=t.dataset.v;render()}
     else if(a==="reset"){fBrand="";fVeh="";fLow=false;fKind="";q="";render()}
     else if(a==="checkout"){
       var items=Object.keys(cart).map(function(k){return {product_id:k,qty:cart[k]}});
       if(!items.length)return;
       var tot=cartTotal();
       t.disabled=true;
-      ck(await sb.rpc("create_sale",{p_items:items}));
-      cart={};await load();toast("Venta registrada: "+money(tot));
+      ck(await sb.rpc("create_sale",{p_items:items,p_payment:pay}));
+      cart={};pay="efectivo";await load();toast("Venta registrada: "+money(tot));
     }
     else if(a==="editprices"){
       var sl=S.sales.find(function(x){return x.id===id});
