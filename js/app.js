@@ -34,7 +34,8 @@ function filtered(){var words=norm(q).split(/\s+/).filter(Boolean);return cur().
   return true}).sort(function(a,b){return a.name.localeCompare(b.name,"es")})}
 
 function render(){
-  document.querySelectorAll("nav button").forEach(function(b){b.setAttribute("aria-selected",b.dataset.tab===tab)});
+  document.querySelectorAll("[data-tab]").forEach(function(b){b.setAttribute("aria-selected",b.dataset.tab===tab)});
+  var cr=$("#crumb");if(cr){var inMain=MAIN[role].indexOf(tab)>-1;cr.textContent=inMain?"":tabLabel(tab);cr.style.display=inMain?"none":""}
   var v=$("#view");
   if(tab==="inv"||tab==="acc")v.innerHTML=inv();else if(tab==="sell")v.innerHTML=sell();else if(tab==="exp")v.innerHTML=exp();else if(tab==="price")v.innerHTML=prices();else v.innerHTML=hist();
   if(tab==="price")pvFill();var s=$("#search");if(s){s.value=q;s.oninput=function(){q=s.value;var pos=s.selectionStart;render();var n=$("#search");n.focus();n.setSelectionRange(pos,pos)}}
@@ -188,14 +189,31 @@ async function load(){
 var sub=null,tm=null;
 function soon(){clearTimeout(tm);tm=setTimeout(function(){load().catch(function(e){toast(msg(e))})},300)}
 function listen(){if(sub)return;sub=sb.channel("cambios");(role==="admin"?["products","sales","expenses"]:["products"]).forEach(function(t){sub.on("postgres_changes",{event:"*",schema:"public",table:t},soon)});sub.subscribe()}
+var TABS=[["inv","Equipamiento"],["acc","Accesorios"],["sell","Vender"],["hist","Historial"],["exp","Gastos"],["price","Precios"]];
+var MAIN={admin:["sell","hist","exp"],viewer:["inv","acc"]};
+var ALL={admin:["inv","acc","sell","hist","exp","price"],viewer:["inv","acc"]};
+var started=false;
+function tabLabel(k){var t=TABS.filter(function(x){return x[0]===k})[0];return t?t[1]:""}
+function buildMenus(){
+  $("#mainnav").innerHTML=MAIN[role].map(function(k){return '<button role="tab" data-tab="'+k+'" aria-selected="'+(tab===k)+'">'+tabLabel(k)+'</button>'}).join("");
+  $("#menulist").innerHTML=ALL[role].map(function(k){return '<button class="menuitem" data-tab="'+k+'" aria-selected="'+(tab===k)+'">'+tabLabel(k)+'</button>'}).join("");
+}
+function openMenu(){$("#drawer").classList.add("open");$("#scrim").classList.add("open");$("#menubtn").setAttribute("aria-expanded","true");$("#menuclose").focus()}
+function closeMenu(){
+  var d=$("#drawer");if(!d.classList.contains("open"))return;
+  d.classList.remove("open");$("#scrim").classList.remove("open");
+  var b=$("#menubtn");b.setAttribute("aria-expanded","false");b.focus();
+}
+$("#menubtn").onclick=openMenu;$("#menuclose").onclick=closeMenu;$("#scrim").onclick=closeMenu;
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeMenu()});
 async function start(session){
-  if(!session){sb.removeAllChannels();sub=null;S={products:[],sales:[],expenses:[]};$("#app").hidden=true;$("#auth").hidden=false;document.body.removeAttribute("data-role");return}
+  if(!session){sb.removeAllChannels();sub=null;S={products:[],sales:[],expenses:[]};$("#app").hidden=true;$("#auth").hidden=false;document.body.removeAttribute("data-role");started=false;closeMenu();return}
   $("#auth").hidden=true;$("#app").hidden=false;
   var pr=await sb.from("profiles").select("role").eq("user_id",session.user.id).maybeSingle();
   role=(pr.data&&pr.data.role)||"viewer";
   document.body.dataset.role=role;
-  document.querySelectorAll("nav button").forEach(function(b){b.style.display=(role==="admin"||b.dataset.tab==="inv"||b.dataset.tab==="acc")?"":"none"});
-  if(role!=="admin")tab="inv";
+  if(!started){tab=role==="admin"?"sell":"inv";started=true}
+  buildMenus();
   $("#sync").textContent=session.user.email+(role==="admin"?" · Administración":" · Consulta");
   listen();
   try{await load()}catch(e){toast(msg(e))}
@@ -206,7 +224,7 @@ $("#aform").addEventListener("submit",async function(e){
   var r=await sb.auth.signInWithPassword({email:$("#aemail").value.trim(),password:$("#apass").value});
   if(r.error)$("#aerr").textContent="Correo o contraseña incorrectos";
 });
-$("#backup").onclick=function(){sb.auth.signOut()};
+$("#backup").onclick=function(){closeMenu();sb.auth.signOut()};
 
 document.addEventListener("input",function(e){
   if(e.target.id==="pval"){pval=e.target.value;pvFill()}
@@ -225,7 +243,7 @@ document.addEventListener("change",function(e){
 document.addEventListener("click",async function(e){
   if(e.target.id==="cpct"&&pay==="tarjeta")return;
   var t=e.target.closest("[data-tab],[data-a]");if(!t)return;
-  if(t.dataset.tab){tab=t.dataset.tab;q="";fBrand="";fVeh="";fLow=false;fKind="";pval="";hFrom="";hTo="";hPay="";hVoid=false;render();return}
+  if(t.dataset.tab){closeMenu();tab=t.dataset.tab;q="";fBrand="";fVeh="";fLow=false;fKind="";pval="";hFrom="";hTo="";hPay="";hVoid=false;render();return}
   var a=t.dataset.a,id=t.dataset.id,p=id&&find(id);
   try{
     if(a==="new"){editId=null;$("#ptitle").textContent=tab==="acc"?"Nuevo accesorio":"Nuevo equipamiento";$("#pform").reset();$("#pmin").value=3;$("#pdlg").showModal()}

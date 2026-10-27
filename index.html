@@ -14,18 +14,23 @@
 <body>
 <div id="auth" class="wrap" hidden><h1>Stock y ventas</h1><div class="card"><form id="aform"><h2>Iniciar sesión</h2><label for="aemail">Correo</label><input id="aemail" type="email" autocomplete="username" required><label for="apass">Contraseña</label><input id="apass" type="password" autocomplete="current-password" required><div id="aerr" style="color:var(--bad);margin-top:8px" role="alert"></div><div class="actions" style="margin-top:12px"><button class="btn primary" style="flex:1">Entrar</button></div></form></div></div>
 <div class="wrap" id="app" hidden>
-  <h1>Stock y ventas</h1>
-  <div class="row" style="align-items:center;justify-content:space-between;margin-top:-6px"><span id="sync" class="meta" style="color:var(--muted);font-size:14px" role="status"></span><button class="btn sm" id="backup" type="button" style="width:auto">Salir</button></div>
-  <nav role="tablist">
-    <button role="tab" data-tab="inv" aria-selected="true">Equipamiento</button>
-    <button role="tab" data-tab="acc" aria-selected="false">Accesorios</button>
-    <button role="tab" data-tab="sell" aria-selected="false">Vender</button>
-    <button role="tab" data-tab="hist" aria-selected="false">Historial</button>
-    <button role="tab" data-tab="exp" aria-selected="false">Gastos</button>
-    <button role="tab" data-tab="price" aria-selected="false">Precios</button>
-  </nav>
+  <div class="hdr">
+    <h1>Stock y ventas</h1>
+    <button class="menubtn" id="menubtn" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="drawer">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+    </button>
+  </div>
+  <nav role="tablist" id="mainnav"></nav>
+  <h2 id="crumb" style="display:none"></h2>
   <main id="view"></main>
 </div>
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Menú">
+  <div class="dhead"><strong>Menú</strong><button class="menubtn" id="menuclose" type="button" aria-label="Cerrar menú">✕</button></div>
+  <div id="sync" role="status" style="color:var(--muted);font-size:14px;word-break:break-all"></div>
+  <div id="menulist"></div>
+  <button class="btn" id="backup" type="button" style="margin-top:auto">Salir</button>
+</aside>
 
 <dialog id="pdlg">
   <form method="dialog" id="pform">

@@ -59,3 +59,17 @@ nav button{flex:1 0 auto;padding:10px 12px;white-space:nowrap}
 .cardchip button{background:none;border:0;color:inherit;font:inherit;padding:0;cursor:pointer}
 .cardchip input{width:3.6em;padding:3px 4px;text-align:center;border-radius:8px;background:transparent;color:inherit;font:inherit;border:1px solid currentColor}
 .chip.pay[data-on="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+/* Cabecera, menú hamburguesa y panel lateral */
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.menubtn{width:44px;height:44px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;font-size:18px;cursor:pointer}
+#crumb{font-size:20px;margin:0 0 12px}
+#scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30}
+#scrim.open{display:block}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:min(84vw,320px);z-index:31;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:12px;overflow-y:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(100%);visibility:hidden;transition:transform .2s,visibility .2s}
+#drawer.open{transform:none;visibility:visible}
+.dhead{display:flex;align-items:center;justify-content:space-between;font-size:18px}
+#menulist{display:flex;flex-direction:column;gap:8px}
+.menuitem{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 16px Figtree,sans-serif;padding:13px 14px;border-radius:12px;cursor:pointer}
+.menuitem[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){#drawer{transition:none}}
