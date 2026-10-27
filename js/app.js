@@ -4,7 +4,7 @@ var S={products:[],sales:[],expenses:[]};
 var role="viewer";
 var sb=supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY);
 var fBrand="",fVeh="",fLow=false,fKind="";
-var pmode="pct",pval="",cpct="20",hFrom="",hTo="";
+var pmode="pct",pval="",cpct="20",hFrom="",hTo="",hPay="",hVoid=false;
 var pay="efectivo",PAYS=[["efectivo","Efectivo"],["transferencia","Transferencia"],["tarjeta","Tarjeta de crédito"]],PL={};
 PAYS.forEach(function(m){PL[m[0]]=m[1]});
 var tab="inv",q="",cart={},editId=null,restockId=null;
@@ -130,6 +130,8 @@ function histList(){
     var day=ymd(s.date);
     if(hFrom&&day<hFrom)return false;
     if(hTo&&day>hTo)return false;
+    if(hPay&&s.pay!==hPay)return false;
+    if(!hVoid&&s.void)return false;
     if(words.length){
       var hay=norm(s.items.map(function(i){return i.name+" "+(i.brand||"")+" "+(i.veh||"")}).join(" "));
       if(!words.every(function(w){return hay.indexOf(w)>-1}))return false;
@@ -138,11 +140,12 @@ function histList(){
   });
 }
 function hist(){
-  var list=histList(),filt=!!(q||hFrom||hTo);
+  var list=histList(),filt=!!(q||hFrom||hTo||hPay||hVoid);
   var tot=0,n=0,by={};list.forEach(function(s){if(!s.void){tot+=s.total;n++;by[s.pay]=(by[s.pay]||0)+s.total}});
   var h='<div class="row"><input id="search" type="search" placeholder="Buscar por nombre, marca o vehículo" aria-label="Buscar en ventas"></div>';
   h+='<div class="row" style="flex-wrap:wrap"><div style="flex:1 1 130px"><label for="hfrom" style="margin-top:0">Desde</label><input id="hfrom" type="date" value="'+hFrom+'"></div><div style="flex:1 1 130px"><label for="hto" style="margin-top:0">Hasta</label><input id="hto" type="date" value="'+hTo+'"></div></div>';
-  h+='<div class="row" style="align-items:center;flex-wrap:wrap"><button class="chip" data-a="hrange" data-v="today">Hoy</button><button class="chip" data-a="hrange" data-v="month">Este mes</button>'+(filt?'<button class="btn sm" data-a="hclear">Limpiar filtros</button>':'')+'<span class="meta" style="margin-left:auto;color:var(--muted)">'+list.length+' de '+S.sales.length+' ventas</span></div>';
+  h+='<div class="row" style="flex-wrap:wrap" role="group" aria-label="Filtrar por forma de pago">'+[["","Todas las formas"]].concat(PAYS).map(function(m){return '<button class="chip pay" data-a="hpay" data-v="'+m[0]+'" aria-pressed="'+(hPay===m[0])+'">'+m[1]+'</button>'}).join("")+'</div>';
+  h+='<div class="row" style="align-items:center;flex-wrap:wrap"><button class="chip" data-a="hrange" data-v="today">Hoy</button><button class="chip" data-a="hrange" data-v="month">Este mes</button><button class="chip" data-a="hvoid" aria-pressed="'+hVoid+'">Mostrar anuladas</button>'+(filt?'<button class="btn sm" data-a="hclear">Limpiar filtros</button>':'')+'<span class="meta" style="margin-left:auto;color:var(--muted)">'+list.length+' de '+S.sales.length+' ventas</span></div>';
   h+='<div class="stats"><div class="stat"><b>'+n+'</b><span>Ventas</span></div><div class="stat"><b>'+money(tot)+'</b><span>Total vendido</span></div></div>';
   h+='<div class="stats" style="grid-template-columns:repeat(3,1fr)">'+PAYS.map(function(m){return '<div class="stat"><b style="font-size:16px">'+money(by[m[0]]||0)+'</b><span>'+m[1]+'</span></div>'}).join("")+'</div>';
   if(!S.sales.length)return h+'<div class="empty">Todavía no registraste ventas.</div>';
@@ -222,7 +225,7 @@ document.addEventListener("change",function(e){
 document.addEventListener("click",async function(e){
   if(e.target.id==="cpct"&&pay==="tarjeta")return;
   var t=e.target.closest("[data-tab],[data-a]");if(!t)return;
-  if(t.dataset.tab){tab=t.dataset.tab;q="";fBrand="";fVeh="";fLow=false;fKind="";pval="";hFrom="";hTo="";render();return}
+  if(t.dataset.tab){tab=t.dataset.tab;q="";fBrand="";fVeh="";fLow=false;fKind="";pval="";hFrom="";hTo="";hPay="";hVoid=false;render();return}
   var a=t.dataset.a,id=t.dataset.id,p=id&&find(id);
   try{
     if(a==="new"){editId=null;$("#ptitle").textContent=tab==="acc"?"Nuevo accesorio":"Nuevo equipamiento";$("#pform").reset();$("#pmin").value=3;$("#pdlg").showModal()}
@@ -236,7 +239,9 @@ document.addEventListener("click",async function(e){
     else if(a==="low"){fLow=!fLow;render()}
     else if(a==="pay"){pay=t.dataset.v;render()}
     else if(a==="hrange"){var td=ymd(Date.now());hTo=td;hFrom=t.dataset.v==="month"?td.slice(0,8)+"01":td;render()}
-    else if(a==="hclear"){hFrom="";hTo="";q="";render()}
+    else if(a==="hclear"){hFrom="";hTo="";hPay="";hVoid=false;q="";render()}
+    else if(a==="hpay"){hPay=t.dataset.v;render()}
+    else if(a==="hvoid"){hVoid=!hVoid;render()}
     else if(a==="refresh"){await load();toast("Datos actualizados")}
     else if(a==="pmode"){pmode=t.dataset.v;render()}
     else if(a==="applyprices"){
