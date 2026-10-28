@@ -4,7 +4,7 @@ var S={products:[],sales:[],expenses:[]};
 var role="viewer";
 var sb=supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY);
 var fBrand="",fVeh="",fLow=false,fKind="";
-var pmode="pct",pval="",cpct="20",hFrom="",hTo="",hPay="",hVoid=false;
+var pmode="pct",pval="",cpct="20",cartOpen=false,hFrom="",hTo="",hPay="",hVoid=false;
 var pay="efectivo",PAYS=[["efectivo","Efectivo"],["transferencia","Transferencia"],["tarjeta","Tarjeta de crédito"]],PL={};
 PAYS.forEach(function(m){PL[m[0]]=m[1]});
 var tab="inv",q="",cart={},editId=null,restockId=null;
@@ -36,22 +36,23 @@ function filtered(){var words=norm(q).split(/\s+/).filter(Boolean);return cur().
 function render(){
   document.querySelectorAll("[data-tab]").forEach(function(b){b.setAttribute("aria-selected",b.dataset.tab===tab)});
   var cr=$("#crumb");if(cr){var inMain=MAIN[role].indexOf(tab)>-1;cr.textContent=inMain?"":tabLabel(tab);cr.style.display=inMain?"none":""}
-  var v=$("#view");
+  var v=$("#view");var cl0=$("#cartlines"),cst=cl0?cl0.scrollTop:0;
   if(tab==="inv"||tab==="acc")v.innerHTML=inv();else if(tab==="sell")v.innerHTML=sell();else if(tab==="exp")v.innerHTML=exp();else if(tab==="price")v.innerHTML=prices();else v.innerHTML=hist();
+  var cl1=$("#cartlines");if(cl1)cl1.scrollTop=cst;
   if(tab==="price")pvFill();var s=$("#search");if(s){s.value=q;s.oninput=function(){q=s.value;var pos=s.selectionStart;render();var n=$("#search");n.focus();n.setSelectionRange(pos,pos)}}
 }
 function fbar(list,low){
   var lowN=cur().filter(function(p){return p.stock<=p.min}).length;
   var allV=[];cur().forEach(function(p){allV=allV.concat(vehs(p))});
   var h='<div class="row" style="flex-wrap:wrap">'+(low?'':'<select id="fkind" aria-label="Filtrar por tipo" style="flex:1;min-width:130px"><option value="">Equipamiento y accesorios</option><option value="equipamiento"'+(fKind==="equipamiento"?" selected":"")+'>Equipamiento</option><option value="accesorios"'+(fKind==="accesorios"?" selected":"")+'>Accesorios</option></select>')+'<select id="fbrand" aria-label="Filtrar por marca" style="flex:1;min-width:130px"><option value="">Todas las marcas</option>'+opts(uniq(cur().map(function(p){return p.brand})),fBrand)+'</select><select id="fveh" aria-label="Filtrar por vehículo" style="flex:1;min-width:130px"><option value="">Todos los vehículos</option>'+opts(uniq(allV),fVeh)+'</select></div>';
-  h+='<div class="row" style="align-items:center">'+(low?'<button class="chip" data-a="low" aria-pressed="'+fLow+'">Stock bajo ('+lowN+')</button>':'')+((fBrand||fVeh||fLow||fKind||q)?'<button class="btn sm" data-a="reset">Limpiar filtros</button>':'')+'<span class="meta" style="margin-left:auto">'+list.length+' de '+cur().length+'</span><button class="btn sm" data-a="refresh">Actualizar</button></div>';
+  h+='<div class="row" style="align-items:center">'+(low?'<button class="chip" data-a="low" aria-pressed="'+fLow+'">Stock bajo'+(role==="admin"?' ('+lowN+')':'')+'</button>':'')+((fBrand||fVeh||fLow||fKind||q)?'<button class="btn sm" data-a="reset">Limpiar filtros</button>':'')+''+(role==="admin"?'<span class="meta" style="margin-left:auto">'+list.length+' de '+cur().length+'</span><button class="btn sm" data-a="refresh">':'<button class="btn sm" data-a="refresh" style="margin-left:auto">')+'Actualizar</button></div>';
   return h;
 }
 function inv(){
   var units=0,val=0,low=0;cur().forEach(function(p){units+=p.stock;val+=p.stock*p.price;if(p.stock<=p.min)low++});
   var list=filtered();
-  var h='<div class="stats"><div class="stat"><b>'+cur().length+'</b><span>Productos</span></div><div class="stat"><b>'+units+'</b><span>Unidades</span></div><div class="stat"><b>'+money(val)+'</b><span>Valor al precio de venta</span></div><div class="stat"><b>'+low+'</b><span>Con stock bajo</span></div></div>';
-  if(fBrand||fVeh||fLow||q){var fu=0,fv=0;list.forEach(function(p){fu+=p.stock;fv+=p.stock*p.price});h+='<div class="meta" style="margin:-4px 0 10px;color:var(--muted)">Según los filtros: '+list.length+' productos · '+fu+' unidades · '+money(fv)+'</div>';}
+  var h=role!=="admin"?'':'<div class="stats"><div class="stat"><b>'+cur().length+'</b><span>Productos</span></div><div class="stat"><b>'+units+'</b><span>Unidades</span></div><div class="stat"><b>'+money(val)+'</b><span>Valor al precio de venta</span></div><div class="stat"><b>'+low+'</b><span>Con stock bajo</span></div></div>';
+  if(role==="admin"&&(fBrand||fVeh||fLow||q)){var fu=0,fv=0;list.forEach(function(p){fu+=p.stock;fv+=p.stock*p.price});h+='<div class="meta" style="margin:-4px 0 10px;color:var(--muted)">Según los filtros: '+list.length+' productos · '+fu+' unidades · '+money(fv)+'</div>';}
   h+='<div class="row"><input id="search" type="search" placeholder="Buscar por nombre, marca o vehículo" aria-label="Buscar producto"><button class="btn primary" data-a="new">Nuevo producto</button></div>';
   h+=fbar(list,true);
   if(!list.length)h+='<div class="empty">'+(cur().length?"Ningún producto coincide con la búsqueda.":"Todavía no cargaste productos. Toca «Nuevo producto» para empezar.")+'</div>';
@@ -116,11 +117,16 @@ function sell(){
   });
   var ids=Object.keys(cart).filter(function(id){return find(id)});
   if(ids.length){
-    h+='<div class="cart"><h2>Venta actual</h2>';
-    ids.forEach(function(id){var p=find(id);
-      h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price*cart[id])+(pay==="tarjeta"?' <b style="color:var(--accent)">→ '+money(card(p.price)*cart[id])+'</b>':'')+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
-    h+='<div class="meta" style="margin-top:8px">Forma de pago: <b>'+PL[pay]+(pay==="tarjeta"?' (+'+pct()+'%)':'')+'</b></div>';
-    h+='<div class="total"><span>Total</span><span>'+money(cartTotal())+'</span></div>'+(pay==="tarjeta"?'<div class="total" style="margin:-4px 0 6px;font-size:17px;color:var(--accent)"><span>Total con tarjeta (+'+pct()+'%)</span><span>'+money(cartCard())+'</span></div><div class="meta" style="margin-bottom:8px">El recargo solo se muestra: la venta se registra al precio normal.</div>':'')+'<div class="actions"><button class="btn primary" data-a="checkout" style="flex:1">Registrar venta</button><button class="btn" data-a="clear">Vaciar</button></div></div>';
+    var cnt=0;ids.forEach(function(id){cnt+=cart[id]});
+    h+='<div class="cart"><button class="carthead" type="button" data-a="cartToggle" aria-expanded="'+cartOpen+'" aria-controls="cartlines"><span>Venta actual · '+(cnt===1?"1 artículo":cnt+" artículos")+'<small>'+(cartOpen?"Toca para ocultar la lista":"Toca para ver la lista")+'</small></span><span class="cartsum">'+money(cartTotal())+'<span class="chev" aria-hidden="true">'+(cartOpen?"▼":"▲")+'</span></span></button>';
+    if(cartOpen){
+      h+='<div id="cartlines" class="cartlines">';
+      ids.forEach(function(id){var p=find(id);
+        h+='<div class="line"><div><div class="name">'+esc(p.name)+'</div>'+(tags(p)?'<div class="meta">'+tags(p)+'</div>':'')+'<div class="meta">'+money(p.price*cart[id])+(pay==="tarjeta"?' <b style="color:var(--accent)">→ '+money(card(p.price)*cart[id])+'</b>':'')+'</div></div><div class="step"><button data-a="dec" data-id="'+id+'" aria-label="Quitar uno">−</button><b>'+cart[id]+'</b><button data-a="inc" data-id="'+id+'" aria-label="Agregar uno"'+(cart[id]>=p.stock?" disabled":"")+'>+</button></div></div>'});
+      h+='</div><div class="meta" style="margin-top:8px">Forma de pago: <b>'+PL[pay]+(pay==="tarjeta"?' (+'+pct()+'%)':'')+'</b></div>';
+    }
+    if(pay==="tarjeta")h+='<div class="total" style="margin:8px 0 0;font-size:16px;color:var(--accent)"><span>Total con tarjeta (+'+pct()+'%)</span><span>'+money(cartCard())+'</span></div>'+(cartOpen?'<div class="meta">El recargo solo se muestra: la venta se registra al precio normal.</div>':'');
+    h+='<div class="actions" style="margin-top:10px"><button class="btn primary" data-a="checkout" style="flex:1">Registrar venta</button><button class="btn" data-a="clear">Vaciar</button></div></div>';
   }
   return h;
 }
@@ -256,6 +262,7 @@ document.addEventListener("click",async function(e){
     else if(a==="clear"){cart={};render()}
     else if(a==="low"){fLow=!fLow;render()}
     else if(a==="pay"){pay=t.dataset.v;render()}
+    else if(a==="cartToggle"){cartOpen=!cartOpen;render()}
     else if(a==="hrange"){var td=ymd(Date.now());hTo=td;hFrom=t.dataset.v==="month"?td.slice(0,8)+"01":td;render()}
     else if(a==="hclear"){hFrom="";hTo="";hPay="";hVoid=false;q="";render()}
     else if(a==="hpay"){hPay=t.dataset.v;render()}
