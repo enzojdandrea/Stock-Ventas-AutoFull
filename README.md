@@ -42,6 +42,9 @@ Pega la URL y la clave anon en `js/config.js`.
 ## Logo
 Para cambiar el logo de la pestaña del navegador, reemplaza `assets/logo.png` por tu imagen conservando el mismo nombre (PNG cuadrado, de 512×512 px si es posible). Vuelve a desplegar y recarga la página con Ctrl+F5, porque el navegador guarda los íconos en caché.
 
+## Copia de seguridad
+En el menú, la sección **Copia de seguridad** (solo administración) descarga todos los datos: un archivo JSON completo o archivos CSV para Excel (productos, ventas y gastos). No incluye los usuarios ni las contraseñas, que se administran en Supabase. Supabase también ofrece sus propios respaldos en Project Settings → Database → Backups.
+
 ## Notas
 - Los permisos los aplica la base de datos, no solo la pantalla.
 - Si actualizas desde una versión anterior (un solo `index.html`), mueve tu `config.js` a `js/config.js` y reemplaza el resto de archivos.
