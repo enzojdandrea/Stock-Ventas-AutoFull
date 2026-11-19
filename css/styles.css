@@ -80,3 +80,8 @@ nav button{flex:1 0 auto;padding:10px 12px;white-space:nowrap}
 .cartsum{display:flex;align-items:center;gap:8px;white-space:nowrap}
 .chev{font-size:14px;color:var(--accent)}
 .cartlines{max-height:38vh;overflow-y:auto;border-top:1px solid var(--line)}
+
+/* Lista de precios */
+input[type="checkbox"]{width:22px;height:22px;padding:0;flex:none;accent-color:var(--accent)}
+.plprice{max-width:130px;text-align:right}
+.plrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}

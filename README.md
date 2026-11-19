@@ -42,6 +42,9 @@ Pega la URL y la clave anon en `js/config.js`.
 ## Logo
 Para cambiar el logo de la pestaña del navegador, reemplaza `assets/logo.png` por tu imagen conservando el mismo nombre (PNG cuadrado, de 512×512 px si es posible). Vuelve a desplegar y recarga la página con Ctrl+F5, porque el navegador guarda los íconos en caché.
 
+## Lista de precios
+En el menú, **Lista de precios** (solo administración) permite armar una lista para mayoristas: eliges productos uno por uno o por tipo/marca, aplicas un descuento o fijas precios, y la copias, compartes, descargas en CSV o imprimes/guardas en PDF. No modifica los precios de los productos ni se guarda en la base de datos.
+
 ## Copia de seguridad
 En el menú, la sección **Copia de seguridad** (solo administración) descarga todos los datos: un archivo JSON completo o archivos CSV para Excel (productos, ventas y gastos). No incluye los usuarios ni las contraseñas, que se administran en Supabase. Supabase también ofrece sus propios respaldos en Project Settings → Database → Backups.
 
